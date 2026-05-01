@@ -1,0 +1,29 @@
+run:
+  threads: 4
+  require_approval: true
+  overwrite: true
+
+tools:
+  fastqc:
+    enabled: true
+    extra_args: []
+
+  multiqc:
+    enabled: true
+    force: true
+    data_format: tsv
+
+report:
+  include_command_stderr: true
+  include_software_versions: true
+  include_sample_table: true
+  include_qc_interpretation: true
+
+naming:
+  paired_end_patterns:
+    - "_R1"
+    - "_R2"
+    - "_1"
+    - "_2"
+
+

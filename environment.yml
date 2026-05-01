@@ -1,0 +1,15 @@
+name: rnaseq-agent
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python=3.11
+  - fastqc
+  - pip
+  - pip:
+      - langgraph
+      - rich
+      - pydantic
+      - pyyaml
+      - multiqc==1.25.2
+
