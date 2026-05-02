@@ -31,3 +31,7 @@ multiqc_data/
 .DS_Store
 .vscode/
 .idea/
+
+.env
+*.env
+
