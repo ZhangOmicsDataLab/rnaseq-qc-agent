@@ -11,5 +11,8 @@ dependencies:
       - rich
       - pydantic
       - pyyaml
+      - streamlit
+      - openai
+      - ollama
       - multiqc==1.25.2
 
