@@ -1,4 +1,5 @@
 run:
+run:
   threads: 4
   require_approval: true
   overwrite: true
@@ -18,12 +19,23 @@ report:
   include_software_versions: true
   include_sample_table: true
   include_qc_interpretation: true
+  write_json_summary: true
 
-naming:
-  paired_end_patterns:
-    - "_R1"
-    - "_R2"
-    - "_1"
-    - "_2"
+llm:
+  enabled: True
+  provider: openai
 
+  # Choose one: openai or ollama
+  provider: openai
 
+  openai:
+    model: gpt-5.2
+    temperature: 0.1
+    max_input_rows: 200
+    max_input_chars: 12000
+
+  ollama:
+    model: llama3.1
+    temperature: 0.1
+    max_input_rows: 200
+    max_input_chars: 12000
