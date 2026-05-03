@@ -25,6 +25,7 @@ class RNASeqQCState(TypedDict):
     command_results: Dict[str, Any]
     qc_summary: Dict[str, Any]
     qc_interpretation: List[str]
+    llm_interpretation: str
 
     report_path: str
-
+    json_report_path: str
