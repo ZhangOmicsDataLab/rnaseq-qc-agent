@@ -147,3 +147,55 @@ def count_status_by_module(rows: list[dict]) -> dict:
         counts[module][status] = counts[module].get(status, 0) + 1
 
     return counts
+
+
+from pathlib import Path
+import csv
+
+
+def parse_multiqc_data(state: RNASeqQCState) -> RNASeqQCState:
+    multiqc_data_dir = Path(state["output_dir"]) / "multiqc" / "multiqc_data"
+
+    errors = list(state.get("errors", []))
+    warnings = list(state.get("warnings", []))
+    qc_summary = dict(state.get("qc_summary", {}))
+
+    if not multiqc_data_dir.exists():
+        warnings.append(f"MultiQC data directory not found: {multiqc_data_dir}")
+        return {
+            **state,
+            "warnings": warnings,
+            "qc_summary": qc_summary,
+            "completed_steps": state.get("completed_steps", []) + ["parse_multiqc_data"],
+        }
+
+    parsed_files = {}
+
+    for path in sorted(multiqc_data_dir.glob("*.txt")):
+        try:
+            parsed_files[path.name] = read_tsv_file(path)
+        except Exception as e:
+            warnings.append(f"Could not parse MultiQC data file {path.name}: {e}")
+
+    qc_summary["multiqc_data_files"] = list(parsed_files.keys())
+    qc_summary["multiqc_parsed_tables"] = parsed_files
+
+    if "multiqc_general_stats.txt" in parsed_files:
+        qc_summary["multiqc_general_stats"] = parsed_files["multiqc_general_stats.txt"]
+
+    if "multiqc_fastqc.txt" in parsed_files:
+        qc_summary["multiqc_fastqc"] = parsed_files["multiqc_fastqc.txt"]
+
+    return {
+        **state,
+        "warnings": warnings,
+        "qc_summary": qc_summary,
+        "completed_steps": state.get("completed_steps", []) + ["parse_multiqc_data"],
+    }
+
+
+def read_tsv_file(path: Path) -> list[dict]:
+    with path.open("r", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        return [dict(row) for row in reader]
+
