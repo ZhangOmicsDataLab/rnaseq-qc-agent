@@ -31,6 +31,7 @@ def build_graph():
     builder.add_node("run_multiqc", run_multiqc)
     builder.add_node("parse_fastqc_summaries", parse_fastqc_summaries)
     builder.add_node("interpret_qc_summary", interpret_qc_summary)
+    builder.add_node("optional_llm_interpretation", optional_llm_interpretation)
     builder.add_node("write_report", write_report)
 
     builder.add_edge(START, "validate_input_dir")
@@ -58,8 +59,9 @@ def build_graph():
     builder.add_edge("record_versions", "run_fastqc")
     builder.add_edge("run_fastqc", "run_multiqc")
     builder.add_edge("run_multiqc", "parse_fastqc_summaries")
-    builder.add_edge("parse_fastqc_summaries", "interpret_qc_summary")
-    builder.add_edge("interpret_qc_summary", "write_report")
+    builder.add_edge("parse_fastqc_summaries", "parse_multiqc_data")
+    builder.add_edge("parse_multiqc_data", "interpret_qc_summary")
+    builder.add_edge("interpret_qc_summary", "optional_llm_interpretation")
+    builder.add_edge("optional_llm_interpretation", "write_report")
     builder.add_edge("write_report", END)
-
     return builder.compile()
