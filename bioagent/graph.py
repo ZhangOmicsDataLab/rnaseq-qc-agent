@@ -15,8 +15,11 @@ from bioagent.nodes.qc_nodes import (
 from bioagent.nodes.version_nodes import record_versions
 from bioagent.nodes.parsing_nodes import (
     parse_fastqc_summaries,
+    parse_multiqc_data,
     interpret_qc_summary,
 )
+
+from bioagent.nodes.llm_nodes import optional_llm_interpretation
 from bioagent.nodes.report_nodes import write_report
 
 
@@ -30,6 +33,7 @@ def build_graph():
     builder.add_node("run_fastqc", run_fastqc)
     builder.add_node("run_multiqc", run_multiqc)
     builder.add_node("parse_fastqc_summaries", parse_fastqc_summaries)
+    builder.add_node("parse_multiqc_data", parse_multiqc_data)
     builder.add_node("interpret_qc_summary", interpret_qc_summary)
     builder.add_node("optional_llm_interpretation", optional_llm_interpretation)
     builder.add_node("write_report", write_report)
