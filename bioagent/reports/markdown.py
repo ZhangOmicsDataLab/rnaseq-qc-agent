@@ -28,6 +28,7 @@ def build_markdown_report(state: RNASeqQCState) -> str:
     add_sample_table(lines, state)
     add_run_plan(lines, state)
     add_software_versions(lines, state)
+    add_llm_settings
 
     lines.extend([
         "## 5. Completed steps",
@@ -52,6 +53,7 @@ def build_markdown_report(state: RNASeqQCState) -> str:
     ])
 
     add_qc_interpretation(lines, state)
+    add_llm_interpretation(lines, state)
     add_fastqc_module_summary(lines, state)
     add_warnings(lines, state)
     add_errors(lines, state)
@@ -255,4 +257,48 @@ def add_failed_command_details(lines: list[str], state: RNASeqQCState) -> None:
     if not failed:
         lines.append("No failed commands recorded.")
         lines.append("")
+
+def add_llm_settings(lines: list[str], state: RNASeqQCState) -> None:
+    llm_config = state.get("config", {}).get("llm", {})
+    enabled = llm_config.get("enabled", False)
+    provider = llm_config.get("provider", "none")
+
+    provider_config = llm_config.get(provider, {})
+    model = provider_config.get("model", "not specified")
+
+    lines.extend([
+        "## LLM settings",
+        "",
+        f"- Enabled: `{enabled}`",
+        f"- Provider: `{provider}`",
+        f"- Model: `{model}`",
+        "",
+    ])
+
+
+def add_llm_interpretation(lines: list[str], state: RNASeqQCState) -> None:
+    lines.extend([
+        "## LLM-assisted interpretation",
+        "",
+    ])
+
+    llm_config = state.get("config", {}).get("llm", {})
+    llm_enabled = llm_config.get("enabled", False)
+    provider = llm_config.get("provider", "none")
+
+    llm_text = state.get("llm_interpretation", "")
+
+    if llm_text:
+        lines.append(llm_text)
+    elif not llm_enabled:
+        lines.append(
+            "LLM interpretation was disabled. The report uses rule-based QC interpretation only."
+        )
+    else:
+        lines.append(
+            f"LLM interpretation was enabled with provider `{provider}`, "
+            "but no LLM output was generated. Check the warnings/errors section."
+        )
+
+    lines.append("")
 
