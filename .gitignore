@@ -35,3 +35,5 @@ multiqc_data/
 .env
 *.env
 
+config.yaml
+run_fastqc_windows.bat
