@@ -1,47 +1,66 @@
-import platform
-import sys
-
-from bioagent.state import RNASeqQCState
-from bioagent.tools.shell import run_command
+from bioagent.utils.shell import run_command
 
 
-def record_versions(state: RNASeqQCState) -> RNASeqQCState:
-    versions = {
-        "python": sys.version.replace("\n", " "),
-        "platform": platform.platform(),
-    }
+def record_versions(state):
+    config = state.get("config", {})
+    tools_config = config.get("tools", {})
 
-    fastqc_result = run_command(["fastqc", "--version"])
-    multiqc_result = run_command(["multiqc", "--version"])
+    software_versions = {}
+    command_results = dict(state.get("command_results", {}))
+    warnings = list(state.get("warnings", []))
+    completed_steps = list(state.get("completed_steps", []))
 
-    versions["fastqc"] = extract_version_output(fastqc_result)
-    versions["multiqc"] = extract_version_output(multiqc_result)
+    fastqc_config = tools_config.get("fastqc", {})
+    multiqc_config = tools_config.get("multiqc", {})
 
-    output_result = {
-        "fastqc_version_command": fastqc_result,
-        "multiqc_version_command": multiqc_result,
-    }
+    # FastQC version
+    if fastqc_config.get("enabled", True):
+        configured_fastqc_version = fastqc_config.get("version")
+
+        if configured_fastqc_version:
+            software_versions["fastqc"] = configured_fastqc_version
+            command_results["fastqc_version_command"] = {
+                "command": "configured in config.yaml",
+                "returncode": 0,
+                "stdout": configured_fastqc_version,
+                "stderr": "",
+            }
+        else:
+            fastqc_command = fastqc_config.get("command", "fastqc")
+            result = run_command([fastqc_command, "--version"])
+            command_results["fastqc_version_command"] = result
+
+            if result.get("returncode") == 0:
+                software_versions["fastqc"] = result.get("stdout", "").strip()
+            else:
+                software_versions["fastqc"] = "unknown"
+                warnings.append(
+                    "Could not determine FastQC version. "
+                    "If using Windows run_fastqc.bat, set tools.fastqc.version in config.yaml."
+                )
+    else:
+        software_versions["fastqc"] = "disabled"
+
+    # MultiQC version
+    if multiqc_config.get("enabled", True):
+        multiqc_command = multiqc_config.get("command", "multiqc")
+        result = run_command([multiqc_command, "--version"])
+        command_results["multiqc_version_command"] = result
+
+        if result.get("returncode") == 0:
+            software_versions["multiqc"] = result.get("stdout", "").strip()
+        else:
+            software_versions["multiqc"] = "unknown"
+            warnings.append("Could not determine MultiQC version.")
+    else:
+        software_versions["multiqc"] = "disabled"
+
+    completed_steps.append("record_versions")
 
     return {
         **state,
-        "software_versions": versions,
-        "command_results": {
-            **state.get("command_results", {}),
-            **output_result,
-        },
-        "completed_steps": state.get("completed_steps", []) + ["record_versions"],
+        "software_versions": software_versions,
+        "command_results": command_results,
+        "warnings": warnings,
+        "completed_steps": completed_steps,
     }
-
-
-def extract_version_output(result: dict) -> str:
-    stdout = result.get("stdout", "").strip()
-    stderr = result.get("stderr", "").strip()
-
-    if stdout:
-        return stdout
-
-    if stderr:
-        return stderr
-
-    return "unknown"
-

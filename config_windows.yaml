@@ -7,7 +7,7 @@ run:
 tools:
   fastqc:
     enabled: true
-    command: "C:/Users/RZ41242/OneDrive - The James Hutton Institute/Box/projects/2026/BioinformaticsAIAgent/rnaseq-qc-agent/run_fastqc_windows.bat"
+    command: "scripts/run_fastqc_windows.bat"
     version: "FastQC v0.12.1"
     extra_args: []
 
