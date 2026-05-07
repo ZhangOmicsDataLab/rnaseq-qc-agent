@@ -1,7 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 
-set FASTQC_DIR=C:\Users\RZ41242\OneDrive - The James Hutton Institute\Box\projects\2026\BioinformaticsAIAgent\fastqc_v0.12.1\FastQC
+set FASTQC_DIR=C:\Path to\FastQC
 set OUTDIR=
 set FILES=
 
