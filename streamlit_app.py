@@ -1,4 +1,7 @@
 from pathlib import Path
+from datetime import datetime
+import os
+import shutil
 
 import streamlit as st
 
@@ -23,22 +26,47 @@ st.write(
 with st.sidebar:
     st.header("Run settings")
 
+    st.write("Current working directory:")
+    st.code(os.getcwd())
+
     input_dir = st.text_input(
         "Input FASTQ directory",
-        value="demo/fastq",
+        value="demo\\fastq",
         help="Folder containing FASTQ/FASTQ.gz files. Use a local folder path, not file upload.",
+    )
+
+    suggested_output_dir = (
+        f"results\\streamlit_run_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
     )
 
     output_dir = st.text_input(
         "Output directory",
-        value="results/streamlit_run",
-        help="Folder where FastQC, MultiQC, Markdown report, and JSON summary will be written.",
+        value=suggested_output_dir,
+        help=(
+            "Folder where FastQC, MultiQC, Markdown report, and JSON summary "
+            "will be written. Use a new folder for each analysis."
+        ),
     )
+
+    overwrite_existing = st.checkbox(
+        "Delete existing output folder before running",
+        value=False,
+        help=(
+            "If checked and the selected output folder already exists, "
+            "the old folder will be deleted before the new analysis starts. "
+            "Use carefully."
+        ),
+    )
+
+    if Path(output_dir).exists() and not overwrite_existing:
+        st.warning("This output folder already exists. Use a new folder name or tick the delete option.")
+        st.write("Suggested new output folder:")
+        st.code(suggested_output_dir)
 
     config_path = st.text_input(
         "Config file",
-        value="config.yaml",
-        help="Path to the YAML configuration file.",
+        value="config_windows.yaml",
+        help="Path to the YAML configuration file. On Windows, use config_windows.yaml.",
     )
 
     st.header("LLM settings")
@@ -53,13 +81,13 @@ with st.sidebar:
         "LLM provider",
         options=["ollama", "openai"],
         index=0,
-        help="Use Ollama for local models or OpenAI for ChatGPT/API models.",
+        help="Use Ollama for local models or OpenAI for API models.",
     )
 
     ollama_model = st.text_input(
         "Ollama model",
         value="llama3.2:1b",
-        help="Local Ollama model. You have confirmed llama3.2:1b works.",
+        help="Local Ollama model. Requires Ollama to be installed and running.",
     )
 
     openai_model = st.text_input(
@@ -79,6 +107,7 @@ def make_initial_state(
     llm_provider: str,
     openai_model: str,
     ollama_model: str,
+    overwrite_existing: bool,
 ) -> dict:
     """
     Build the initial LangGraph state for the Streamlit app.
@@ -89,9 +118,10 @@ def make_initial_state(
 
     config = load_config(config_path)
 
-    # In Streamlit, avoid terminal input approval.
+    # In Streamlit, avoid terminal approval.
     config.setdefault("run", {})
     config["run"]["require_approval"] = False
+    config["run"]["overwrite"] = overwrite_existing
 
     # Override LLM settings from the GUI.
     config.setdefault("llm", {})
@@ -149,7 +179,7 @@ def render_download_button(path: Path, label: str, mime: str) -> None:
     if path.exists() and path.is_file():
         st.download_button(
             label=label,
-            data=path.read_text(),
+            data=path.read_text(encoding="utf-8"),
             file_name=path.name,
             mime=mime,
         )
@@ -179,6 +209,43 @@ def render_sample_table(samples: dict) -> None:
         )
 
     st.dataframe(sample_rows, use_container_width=True)
+
+
+def render_command_details(result: dict) -> None:
+    """
+    Show command details for debugging failed external tools.
+    """
+
+    command_results = result.get("command_results", {})
+
+    if not command_results:
+        return
+
+    st.subheader("Command details")
+
+    for command_name in [
+        "fastqc_version_command",
+        "multiqc_version_command",
+        "fastqc",
+        "multiqc",
+    ]:
+        if command_name not in command_results:
+            continue
+
+        command_result = command_results[command_name]
+
+        with st.expander(f"{command_name} details"):
+            st.write("Command:")
+            st.code(command_result.get("command", ""))
+
+            st.write("Return code:")
+            st.code(str(command_result.get("returncode", "")))
+
+            st.write("STDOUT:")
+            st.code(command_result.get("stdout", ""))
+
+            st.write("STDERR:")
+            st.code(command_result.get("stderr", ""))
 
 
 def render_run_result(result: dict) -> None:
@@ -228,6 +295,8 @@ def render_run_result(result: dict) -> None:
         for error in errors:
             st.error(error)
 
+    render_command_details(result)
+
     st.subheader("Detected samples")
     render_sample_table(result.get("samples", {}))
 
@@ -268,11 +337,12 @@ def render_run_result(result: dict) -> None:
 
     st.subheader("Output files")
 
-    output_dir = Path(result.get("output_dir", ""))
+    output_dir_path = Path(result.get("output_dir", ""))
     report_path = Path(result.get("report_path", ""))
     json_path = Path(result.get("json_report_path", ""))
-    multiqc_report = output_dir / "multiqc" / "multiqc_report.html"
+    multiqc_report = output_dir_path / "multiqc" / "multiqc_report.html"
 
+    st.write(f"Output directory: `{output_dir_path}`")
     st.write(f"Markdown report: `{report_path}`")
     st.write(f"JSON summary: `{json_path}`")
     st.write(f"MultiQC report: `{multiqc_report}`")
@@ -296,14 +366,39 @@ def render_run_result(result: dict) -> None:
             )
 
     if multiqc_report.exists():
-        st.info(
-            "MultiQC report was created. Open it from the path above in your browser or file manager."
-        )
+        st.success("MultiQC report was created.")
+        st.write("Open this file in your browser or file manager:")
+        st.code(str(multiqc_report))
     else:
         st.warning("MultiQC report was not found.")
 
 
 if run_button:
+    output_path = Path(output_dir)
+
+    if output_path.exists() and not overwrite_existing:
+        st.error(
+            "The selected output folder already exists. "
+            "Please choose a new output folder name, or tick "
+            "'Delete existing output folder before running'."
+        )
+
+        st.info(f"Existing output folder: `{output_path}`")
+        st.stop()
+
+    if output_path.exists() and overwrite_existing:
+        st.warning(
+            "The selected output folder already exists. "
+            "Old results in this folder will be deleted before running."
+        )
+
+        try:
+            shutil.rmtree(output_path)
+        except Exception as e:
+            st.error(f"Could not delete existing output folder: {output_path}")
+            st.exception(e)
+            st.stop()
+
     st.info("Running RNA-seq QC agent...")
 
     try:
@@ -317,6 +412,7 @@ if run_button:
             llm_provider=llm_provider,
             openai_model=openai_model,
             ollama_model=ollama_model,
+            overwrite_existing=overwrite_existing,
         )
 
         with st.spinner("Running FastQC, MultiQC, parsing, and report generation..."):
@@ -324,7 +420,10 @@ if run_button:
 
         st.session_state["last_result"] = result
 
-        st.success("RNA-seq QC agent finished.")
+        if result.get("errors"):
+            st.error("RNA-seq QC agent finished with errors.")
+        else:
+            st.success("RNA-seq QC agent finished successfully.")
 
     except Exception as e:
         st.error(f"RNA-seq QC agent failed: {e}")
