@@ -340,11 +340,11 @@ The samples passed most basic QC checks. However, Sample_2 shows increased adapt
 
 The LLM output should be treated as an assistant-generated interpretation, not as a replacement for manually checking the MultiQC report.
 
-![LLM interpretation panel](images/docs/images/streamlit_success3.png)
+![LLM interpretation panel](docs/images/streamlit_success3.png)
 
 ---
 
-## 16. recommended workflow for real data
+## 16. Recommended workflow for real data
 
 For real RNA-seq datasets, a good workflow is:
 
